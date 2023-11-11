@@ -66,13 +66,19 @@ import ch.qos.logback.core.spi.ContextAwareImpl;
  */
 public class Interpreter {
     private static List<Action> EMPTY_LIST = new Vector<Action>(0);
-
+    // 实例规则仓库. 示例: [configuration][appender] -> AppenderAction
     final private RuleStore ruleStore;
+    // 解析器上下文, 存储解析过程重要的信息
     final private InterpretationContext interpretationContext;
+    // 隐晦的规则列表, 用于处理ruleStore不包含的嵌套属性解析初始化和绑定等
     final private ArrayList<ImplicitAction> implicitActions;
+    // 保留定位器信息的记录类 (不重要)
     final private CAI_WithLocatorSupport cai;
+    // 当前解析标签的路径, 例如 [configuration] [appender]. 解析过程中类似栈的使用
     private ElementPath elementPath;
+    // 当前解析位于xml文件的位置
     Locator locator;
+    // 事件解析执行器, 用于解析SaxEvent事件
     EventPlayer eventPlayer;
 
     /**
@@ -83,12 +89,14 @@ public class Interpreter {
      * {@link #endElement}.
      * 
      */
+    // action列表的栈, 用于记录解析过程中的解析规则
     Stack<List<Action>> actionListStack;
 
     /**
      * If the skip nested is set, then we skip all its nested elements until it is
      * set back to null at when the element's end is reached.
      */
+    // skip指定的标签, 它的所有嵌套元素都会被跳过
     ElementPath skip = null;
 
     public Interpreter(Context context, RuleStore rs, ElementPath initialElementPath) {
@@ -123,28 +131,48 @@ public class Interpreter {
     public void startDocument() {
     }
 
+    /**
+     * 解析标签头(入口)
+     * @param se
+     */
     public void startElement(StartEvent se) {
+        // 记录当前解析 位于xml文件的位置
         setDocumentLocator(se.getLocator());
+        // do...
         startElement(se.namespaceURI, se.localName, se.qName, se.attributes);
     }
 
+    /**
+     * 解析标签头
+     * @param namespaceURI
+     * @param localName
+     * @param qName
+     * @param atts
+     */
     private void startElement(String namespaceURI, String localName, String qName, Attributes atts) {
-
+        // localName有值取localName, 没值取qName.
+        // 拓展: 示例<a bb:ccc="123"/> 其中cc就是本地名称localName, bb:ccc就是限定名称qName
         String tagName = getTagName(localName, qName);
+        // 使用elementPath, 类似栈的形式记录当前解析标签的层级.
+        // 例如解析到<configuration>内的<appender>标签, 则elementPath伪栈中有configuration和appender
         elementPath.push(tagName);
-
+        // 解析标签头异常时使用skip跳过 异常解析的标签的内嵌标签
         if (skip != null) {
             // every startElement pushes an action list
+            // 添加空的action列表占位 (入栈占位)
             pushEmptyActionList();
             return;
         }
-
+        // 重要代码: 获取适用的Action列表, 一般都是返回一个元素. 先从ruleStore找常规的Action, 找不到再到implicitActions中找
         List<Action> applicableActionList = getApplicableActionList(elementPath, atts);
         if (applicableActionList != null) {
+            //  action事件列表进栈, 以便处理body和end事件时使用
             actionListStack.add(applicableActionList);
+            // 核心代码: 执行action列表的begin事件
             callBeginAction(applicableActionList, tagName, atts);
         } else {
             // every startElement pushes an action list
+            // 添加空的action列表占位 (入栈占位)
             pushEmptyActionList();
             String errMsg = "no applicable action for [" + tagName + "], current ElementPath  is [" + elementPath + "]";
             cai.addError(errMsg);
@@ -154,6 +182,7 @@ public class Interpreter {
     /**
      * This method is used to
      */
+    //  添加空的action列表占位 (入栈占位)
     private void pushEmptyActionList() {
         actionListStack.add(EMPTY_LIST);
     }

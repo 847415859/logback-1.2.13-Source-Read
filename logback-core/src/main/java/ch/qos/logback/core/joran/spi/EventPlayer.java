@@ -22,9 +22,11 @@ import ch.qos.logback.core.joran.event.SaxEvent;
 import ch.qos.logback.core.joran.event.StartEvent;
 
 public class EventPlayer {
-
+    // 解析器
     final Interpreter interpreter;
+    // xml解析出来的事件列表
     List<SaxEvent> eventList;
+    // 当前解析事件的索引
     int currentIndex;
 
     public EventPlayer(Interpreter interpreter) {
@@ -43,22 +45,31 @@ public class EventPlayer {
     public void play(List<SaxEvent> aSaxEventList) {
         eventList = aSaxEventList;
         SaxEvent se;
+        // 遍历SaxEventList. 可以理解为逐个解析xml中的每一个标签(以栈的形式处理)
         for (currentIndex = 0; currentIndex < eventList.size(); currentIndex++) {
             se = eventList.get(currentIndex);
-
+            // 处理开始事件, 示例: 解析<appender name="console" class="ch.qos.logback.core.ConsoleAppender">
             if (se instanceof StartEvent) {
+                // 核心代码: 解析标签开始元素
                 interpreter.startElement((StartEvent) se);
                 // invoke fireInPlay after startElement processing
+                // 将当前事件添加到所有解析器的监听器中待后续使用 (非核心代码, 不展开)
                 interpreter.getInterpretationContext().fireInPlay(se);
             }
+            // 处理body事件, 示例: 解析<pattern>${log.pattern}</pattern>中的${log.pattern}
             if (se instanceof BodyEvent) {
                 // invoke fireInPlay before characters processing
+                // 将当前事件添加到所有解析器的监听器中待后续使用 (非核心代码, 不展开)
                 interpreter.getInterpretationContext().fireInPlay(se);
+                // 核心代码: 解析标签体内的字符串
                 interpreter.characters((BodyEvent) se);
             }
+            // 处理结束时事件, 示例: 解析</appender>
             if (se instanceof EndEvent) {
                 // invoke fireInPlay before endElement processing
+                // 将当前事件添加到所有解析器的监听器中待后续使用 (非核心代码, 不展开)
                 interpreter.getInterpretationContext().fireInPlay(se);
+                //  核心代码: 解析标签结束元素
                 interpreter.endElement((EndEvent) se);
             }
 

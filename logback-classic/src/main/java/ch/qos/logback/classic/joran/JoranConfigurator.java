@@ -40,7 +40,7 @@ public class JoranConfigurator extends JoranConfiguratorBase<ILoggingEvent> {
     public void addInstanceRules(RuleStore rs) {
         // parent rules already added
         super.addInstanceRules(rs);
-
+        // 添加标签<configuration>的解析规则ConfigurationAction
         rs.addRule(new ElementSelector("configuration"), new ConfigurationAction());
 
         rs.addRule(new ElementSelector("configuration/contextName"), new ContextNameAction());
@@ -50,7 +50,7 @@ public class JoranConfigurator extends JoranConfiguratorBase<ILoggingEvent> {
 
         rs.addRule(new ElementSelector("configuration/appender/sift"), new SiftAction());
         rs.addRule(new ElementSelector("configuration/appender/sift/*"), new NOPAction());
-
+        // 添加标签<configuration>内的<logger>的解析规则LoggerAction
         rs.addRule(new ElementSelector("configuration/logger"), new LoggerAction());
         rs.addRule(new ElementSelector("configuration/logger/level"), new LevelAction());
 

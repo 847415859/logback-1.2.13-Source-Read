@@ -26,6 +26,7 @@ import ch.qos.logback.core.util.OptionHelper;
 
 /**
  * Holds the context selector for use in the current environment.
+ * 上下文选择器
  * 
  * @author Ceki G&uuml;lc&uuml;
  * @since 0.9.19

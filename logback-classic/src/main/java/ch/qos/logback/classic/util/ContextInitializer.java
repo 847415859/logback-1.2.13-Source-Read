@@ -53,14 +53,23 @@ public class ContextInitializer {
         this.loggerContext = loggerContext;
     }
 
+    /**
+     * 根据指定的文件加载配置
+     * @param url
+     * @throws JoranException
+     */
     public void configureByResource(URL url) throws JoranException {
         if (url == null) {
             throw new IllegalArgumentException("URL argument cannot be null");
         }
         final String urlString = url.toString();
+        // 配置文件必须以 xml 结尾
         if (urlString.endsWith("xml")) {
+            // 使用JoranConfigurator加载配置文件, 完成配置
+            // 注: springboot项目有logback-spring.xml等配置文件时, 在监听器初始化时使用SpringBootJoranConfigurator完成配置. 详情见 [SpringBoot中logback的初始化流程
             JoranConfigurator configurator = new JoranConfigurator();
             configurator.setContext(loggerContext);
+            // 核心代码: doConfigure(URL url)
             configurator.doConfigure(url);
         } else {
             throw new LogbackException("Unexpected filename extension of file [" + url.toString() + "]. Should be .xml");
@@ -73,6 +82,12 @@ public class ContextInitializer {
         configurator.doConfigure(url);
     }
 
+    /**
+     * 根据系统参数  logback.configurationFile 指定的路径加载配置文件
+     * @param classLoader
+     * @param updateStatus
+     * @return
+     */
     private URL findConfigFileURLFromSystemProperties(ClassLoader classLoader, boolean updateStatus) {
         String logbackConfigFile = OptionHelper.getSystemProperty(CONFIG_FILE_PROPERTY);
         if (logbackConfigFile != null) {
@@ -104,18 +119,24 @@ public class ContextInitializer {
         return null;
     }
 
+    /**
+     * 寻找文件配置文件
+     * @param updateStatus
+     * @return
+     */
     public URL findURLOfDefaultConfigurationFile(boolean updateStatus) {
         ClassLoader myClassLoader = Loader.getClassLoaderOfObject(this);
+        // 根据系统参数  logback.configurationFile 指定的路径加载配置文件
         URL url = findConfigFileURLFromSystemProperties(myClassLoader, updateStatus);
         if (url != null) {
             return url;
         }
-
+        // 加载 logback-test.xml
         url = getResource(TEST_AUTOCONFIG_FILE, myClassLoader, updateStatus);
         if (url != null) {
             return url;
         }
-    
+        // 加载 logback.xml
         return getResource(AUTOCONFIG_FILE, myClassLoader, updateStatus);
     }
 
@@ -128,11 +149,14 @@ public class ContextInitializer {
     }
 
     public void autoConfig() throws JoranException {
+        // 若配置了logback.statusListenerClass, 则为loggerContext添加状态监听器
         StatusListenerConfigHelper.installIfAsked(loggerContext);
+        // 寻找配置文件URL
         URL url = findURLOfDefaultConfigurationFile(true);
         if (url != null) {
             configureByResource(url);
         } else {
+            // 使用SPI方式加载Configurator的实现类(如果加载到多个，默认选择第一个)
             Configurator c = EnvUtil.loadFromServiceLoader(Configurator.class);
             if (c != null) {
                 try {
@@ -143,6 +167,7 @@ public class ContextInitializer {
                                     .getCanonicalName() : "null"), e);
                 }
             } else {
+                // // 重要代码: 使用默认的配置BasicConfigurator. 默认配置见 [补充: 默认配置BasicConfigurator类]
                 BasicConfigurator basicConfigurator = new BasicConfigurator();
                 basicConfigurator.setContext(loggerContext);
                 basicConfigurator.configure(loggerContext);

@@ -56,6 +56,9 @@ public class StaticLoggerBinder implements LoggerFactoryBinder {
     }
 
     private boolean initialized = false;
+    /**
+     * 日志上下文对象
+     */
     private LoggerContext defaultLoggerContext = new LoggerContext();
     private final ContextSelectorStaticBinder contextSelectorBinder = ContextSelectorStaticBinder.getSingleton();
 
@@ -81,14 +84,21 @@ public class StaticLoggerBinder implements LoggerFactoryBinder {
     void init() {
         try {
             try {
+                // 核心代码: 读取配置, 完成LoggerContext初始化
                 new ContextInitializer(defaultLoggerContext).autoConfig();
             } catch (JoranException je) {
                 Util.report("Failed to auto configure default logger context", je);
             }
             // logback-292
+            // 有状态监听器时并且阈值为错误或警告时, 打印LoggerContext的状态内容
             if (!StatusUtil.contextHasStatusListener(defaultLoggerContext)) {
                 StatusPrinter.printInCaseOfErrorsOrWarnings(defaultLoggerContext);
             }
+            // 重要代码: 这里初始化contextSelectorBinder的contextSelector属性, contextSelector属性中包含了LoggerContext.
+            //   1. 之前的StaticLoggerBinder.getSingleton().getLoggerFactory()方法获取的就是contextSelector属性中的LoggerContext
+            //   2. contextSelector的默认实现为DefaultContextSelector. 可以通过配置指定实现, 例如logback.ContextSelector=JNDI(实现为ContextJNDISelector)
+            //   3. DefaultContextSelector的getLoggerContext()直接返回defaultLoggerContext,
+            //   4. ContextJNDISelector的getLoggerContext()可能为不同环境(contextName)提供不同的LoggerContext对象
             contextSelectorBinder.init(defaultLoggerContext, KEY);
             initialized = true;
         } catch (Exception t) { // see LOGBACK-1159

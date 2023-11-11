@@ -54,12 +54,19 @@ public class LoggerContext extends ContextBase implements ILoggerFactory, LifeCy
 
     /** Default setting of packaging data in stack traces */
     public static final boolean DEFAULT_PACKAGING_DATA = false;
-
+    // 根 Logger
     final Logger root;
+    // logger 数量
     private int size;
+
     private int noAppenderWarning = 0;
+
+    // 监听器
     final private List<LoggerContextListener> loggerContextListenerList = new ArrayList<LoggerContextListener>();
 
+    /**
+     * logger对象缓存
+     */
     private Map<String, Logger> loggerCache;
 
     private LoggerContextVO loggerContextRemoteView;
@@ -76,6 +83,7 @@ public class LoggerContext extends ContextBase implements ILoggerFactory, LifeCy
         this.loggerCache = new ConcurrentHashMap<String, Logger>();
 
         this.loggerContextRemoteView = new LoggerContextVO(this);
+        // root Logger 初始化，默认 Debug 级别
         this.root = new Logger(Logger.ROOT_LOGGER_NAME, null, this);
         this.root.setLevel(Level.DEBUG);
         loggerCache.put(Logger.ROOT_LOGGER_NAME, root);
@@ -118,7 +126,7 @@ public class LoggerContext extends ContextBase implements ILoggerFactory, LifeCy
         if (name == null) {
             throw new IllegalArgumentException("name argument cannot be null");
         }
-
+        // 如果获取的是根logger则直接返回. 根logger在LoggerContext构造器中就创建出来(name=ROOT, level=DEBUG)
         // if we are asking for the root logger, then let us return it without
         // wasting time
         if (Logger.ROOT_LOGGER_NAME.equalsIgnoreCase(name)) {
@@ -130,6 +138,7 @@ public class LoggerContext extends ContextBase implements ILoggerFactory, LifeCy
 
         // check if the desired logger exists, if it does, return it
         // without further ado.
+        // 缓存有则从缓存中获取
         Logger childLogger = (Logger) loggerCache.get(name);
         // if we have the child, then let us return it without wasting time
         if (childLogger != null) {
@@ -138,25 +147,35 @@ public class LoggerContext extends ContextBase implements ILoggerFactory, LifeCy
 
         // if the desired logger does not exist, them create all the loggers
         // in between as well (if they don't already exist)
+        // 根据入参name获取logger. 示例name=com.qiankun.Test, 假设初始化时只存在一个根root
+        //    则这里会先按"."切割name, 依次得到com, com.qiankun, com.qiankun.Test
+        //    这里会先创建出name为com的logger, 作为root的子logger.
+        //    再创建name为com.qiankun的logger, 作为logger(com)的子logger, 直到创建出目标logger(com.qiankun.Test)
         String childName;
         while (true) {
+            //  按照"."切割name(示例: name=com.qiankun.Test). 循环中依次获得com, com.qiankun, com.qiankun.Test
             int h = LoggerNameUtil.getSeparatorIndexOf(name, i);
-            if (h == -1) {
+            if (h == -1) {  // 没有
                 childName = name;
             } else {
                 childName = name.substring(0, h);
             }
             // move i left of the last point
-            i = h + 1;
+            i = h + 1;  // 查找"."的索引右移
             synchronized (logger) {
+                // 根据childName获取当前节点的子节点(不展开), 没有则创建
                 childLogger = logger.getChildByName(childName);
                 if (childLogger == null) {
+                    // 根据名字创建出新的节点, 并写入缓存
                     childLogger = logger.createChildByName(childName);
                     loggerCache.put(childName, childLogger);
+                    // 累计上下文中logger的个数
                     incSize();
                 }
             }
+            // 将子logger切换为当前循环引用对象, 继续找
             logger = childLogger;
+            // 已经创建出或查找到目标logger, 返回
             if (h == -1) {
                 return childLogger;
             }

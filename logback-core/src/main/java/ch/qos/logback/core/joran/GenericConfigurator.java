@@ -40,16 +40,24 @@ public abstract class GenericConfigurator extends ContextAwareBase {
 
     protected Interpreter interpreter;
 
+    /**
+     * 处理配置
+     * @param url
+     * @throws JoranException
+     */
     public final void doConfigure(URL url) throws JoranException {
         InputStream in = null;
         try {
+            // 给上下文设置加载的记录配置文件的地址
             informContextOfURLUsedForConfiguration(getContext(), url);
+            // 获取配置文件流
             URLConnection urlConnection = url.openConnection();
             // per http://jira.qos.ch/browse/LBCORE-105
             // per http://jira.qos.ch/browse/LBCORE-127
             urlConnection.setUseCaches(false);
 
             in = urlConnection.getInputStream();
+            // 核心代码: doConfigure(InputStream inputStream, String systemId)
             doConfigure(in, url.toExternalForm());
         } catch (IOException ioe) {
             String errMsg = "Could not open URL [" + url + "].";
@@ -107,6 +115,7 @@ public abstract class GenericConfigurator extends ContextAwareBase {
     public final void doConfigure(InputStream inputStream, String systemId) throws JoranException {
         InputSource inputSource = new InputSource(inputStream);
         inputSource.setSystemId(systemId);
+        // 核心代码: 真正执行配置解析加载 doConfigure(final InputSource inputSource)
         doConfigure(inputSource);
     }
 
@@ -130,27 +139,47 @@ public abstract class GenericConfigurator extends ContextAwareBase {
     }
 
     protected void buildInterpreter() {
+        // 创建规则存储实现对象
         RuleStore rs = new SimpleRuleStore(context);
+        // 重要代码: 添加实例的常规规则
+        // 说明: 添加规则示例: configuration/appender -> AppenderAction, configuration/logger -> LoggerAction
+        // 用途: 例如AppenderActionAction是用来完成<appender>标签的解析和appender的初始化的
         addInstanceRules(rs);
+        // 初始化出解析器对象, 该对象完成核心的SaxEvent解析工作
         this.interpreter = new Interpreter(context, rs, initialElementPath());
+        // 初始化出解析器上下文对象, 该对象存储解析过程重要的信息
         InterpretationContext interpretationContext = interpreter.getInterpretationContext();
         interpretationContext.setContext(context);
+        // 添加隐含的规则 (不展开)
+        // 说明: 添加Action: NestedComplexPropertyIA 或 NestedBasicPropertyIA
+        // 用途: 完成嵌套属性值的初始化和设置绑定, 例如设置appender内的encoder
         addImplicitRules(interpreter);
+        // 添加默认嵌套组件注册表 (不展开)
+        // 说明: 指定嵌套组件的默认实现, 例如UnsynchronizedAppenderBase的encoder属性默认实现为PatternLayoutEncode
         addDefaultNestedComponentRegistryRules(interpretationContext.getDefaultNestedComponentRegistry());
     }
 
     // this is the most inner form of doConfigure whereto other doConfigure
     // methods ultimately delegate
+
+    /**
+     * 真正执行代码逻辑，其他方法都是向他委派
+     * @param inputSource
+     * @throws JoranException
+     */
     public final void doConfigure(final InputSource inputSource) throws JoranException {
 
         long threshold = System.currentTimeMillis();
         // if (!ConfigurationWatchListUtil.wasConfigurationWatchListReset(context)) {
         // informContextOfURLUsedForConfiguration(getContext(), null);
         // }
+        // 使用SAXParser解析配置文件, 得到saxEventList
         SaxEventRecorder recorder = new SaxEventRecorder(context);
         recorder.recordEvents(inputSource);
+        // 核心代码: 执行配置
         doConfigure(recorder.saxEventList);
         // no exceptions a this level
+        // 没有XML解析错误发生时, 将当前配置注册为安全回退点
         StatusUtil statusUtil = new StatusUtil(context);
         if (statusUtil.noXMLParsingErrorsOccurred(threshold)) {
             addInfo("Registering current configuration as safe fallback point");
@@ -159,8 +188,10 @@ public abstract class GenericConfigurator extends ContextAwareBase {
     }
 
     public void doConfigure(final List<SaxEvent> eventList) throws JoranException {
+        // 重要代码: 构建解析器 (注: 假设GenericConfigurator的实现类为JoranConfigurator (默认值))
         buildInterpreter();
         // disallow simultaneous configurations of the same context
+        // 核心代码: 上锁, 解析一个个SaxEvent事件(以栈的格式逐个处理配置文件中的各个标签解析出来的内容), 完成LoggerContext初始化
         synchronized (context.getConfigurationLock()) {
             interpreter.getEventPlayer().play(eventList);
         }

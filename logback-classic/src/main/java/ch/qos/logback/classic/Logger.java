@@ -344,19 +344,28 @@ public final class Logger implements org.slf4j.Logger, LocationAwareLogger, Appe
      * smaller value to save a little space.
      */
 
+    /**
+     * 根据名称创建子Logger节点
+     * @param childName
+     * @return
+     */
     Logger createChildByName(final String childName) {
+        // 判断当前logger的name 和 要创建logger的name之间不能存在多余的"."
+        // 例如当前logger(com), 要创建的logger(com.Test), 从Test的T开始往后是没有多余的"."了
         int i_index = LoggerNameUtil.getSeparatorIndexOf(childName, this.name.length() + 1);
         if (i_index != -1) {
             throw new IllegalArgumentException("For logger [" + this.name + "] child name [" + childName
                             + " passed as parameter, may not include '.' after index" + (this.name.length() + 1));
         }
-
+        // 子logger列表为空, 为其初始化
         if (childrenList == null) {
             childrenList = new CopyOnWriteArrayList<Logger>();
         }
         Logger childLogger;
+        // 创建子节点, 并绑定到childrenList上
         childLogger = new Logger(childName, this, this.loggerContext);
         childrenList.add(childLogger);
+        // // 子类继承父类的有效level等级
         childLogger.effectiveLevelInt = this.effectiveLevelInt;
         return childLogger;
     }
