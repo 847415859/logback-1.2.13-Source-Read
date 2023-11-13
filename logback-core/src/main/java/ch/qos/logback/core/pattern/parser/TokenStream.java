@@ -47,7 +47,11 @@ import ch.qos.logback.core.spi.ScanException;
 class TokenStream {
 
     enum TokenizerState {
-        LITERAL_STATE, FORMAT_MODIFIER_STATE, KEYWORD_STATE, OPTION_STATE, RIGHT_PARENTHESIS_STATE
+        LITERAL_STATE, // 文字状态
+        FORMAT_MODIFIER_STATE, // 格式修饰符状态
+        KEYWORD_STATE,   // 关键字状态
+        OPTION_STATE,    // 选项状态
+        RIGHT_PARENTHESIS_STATE  // 右括号状态
     }
 
     final String pattern;
@@ -82,19 +86,19 @@ class TokenStream {
             pointer++;
 
             switch (state) {
-            case LITERAL_STATE:
+            case LITERAL_STATE:             // 文字状态
                 handleLiteralState(c, tokenList, buf);
                 break;
-            case FORMAT_MODIFIER_STATE:
+            case FORMAT_MODIFIER_STATE:     // token 修饰符状态
                 handleFormatModifierState(c, tokenList, buf);
                 break;
-            case OPTION_STATE:
+            case OPTION_STATE:              // 可选状态
                 processOption(c, tokenList, buf);
                 break;
-            case KEYWORD_STATE:
+            case KEYWORD_STATE:             // 关键词状态
                 handleKeywordState(c, tokenList, buf);
                 break;
-            case RIGHT_PARENTHESIS_STATE:
+            case RIGHT_PARENTHESIS_STATE:   // 右括号状态
                 handleRightParenthesisState(c, tokenList, buf);
                 break;
 
@@ -146,13 +150,17 @@ class TokenStream {
     }
 
     private void handleFormatModifierState(char c, List<Token> tokenList, StringBuffer buf) {
-        if (c == CoreConstants.LEFT_PARENTHESIS_CHAR) {
+        if (c == CoreConstants.LEFT_PARENTHESIS_CHAR) {    // 是否是  '('
+            // 添加格式化修饰符的Token
             addValuedToken(Token.FORMAT_MODIFIER, buf, tokenList);
             tokenList.add(Token.BARE_COMPOSITE_KEYWORD_TOKEN);
             state = TokenizerState.LITERAL_STATE;
-        } else if (Character.isJavaIdentifierStart(c)) {
+        } else if (Character.isJavaIdentifierStart(c)) {        // 确定指定的字符（Unicode代码点）是否为字母表
+            // 添加格式化修饰符的Token
             addValuedToken(Token.FORMAT_MODIFIER, buf, tokenList);
+            // 设置为关键字token
             state = TokenizerState.KEYWORD_STATE;
+            // 将需要处理的token放到buf中
             buf.append(c);
         } else {
             buf.append(c);
@@ -161,18 +169,23 @@ class TokenStream {
 
     private void handleLiteralState(char c, List<Token> tokenList, StringBuffer buf) {
         switch (c) {
-        case ESCAPE_CHAR:
+        case ESCAPE_CHAR:   //  ‘\\’ 号
             escape("%()", buf);
             break;
 
-        case CoreConstants.PERCENT_CHAR:
+        case CoreConstants.PERCENT_CHAR:        // '%' 号
+            // 添加 Token值
             addValuedToken(Token.LITERAL, buf, tokenList);
+            // 添加 % Token
             tokenList.add(Token.PERCENT_TOKEN);
+            // 设置为格式化状态
             state = TokenizerState.FORMAT_MODIFIER_STATE;
             break;
 
-        case CoreConstants.RIGHT_PARENTHESIS_CHAR:
+        case CoreConstants.RIGHT_PARENTHESIS_CHAR:      // ')' 号
+            // 添加 Token值
             addValuedToken(Token.LITERAL, buf, tokenList);
+            // 设置状态为 右括号状态
             state = TokenizerState.RIGHT_PARENTHESIS_STATE;
             break;
 
@@ -182,24 +195,30 @@ class TokenStream {
     }
 
     private void handleKeywordState(char c, List<Token> tokenList, StringBuffer buf) {
-
-        if (Character.isJavaIdentifierPart(c)) {
+        // 确定指定的字符是否可以作为第一个字符以外的Java标识符的一部分
+        if (Character.isJavaIdentifierPart(c)) {        //
             buf.append(c);
+            // ‘{’
         } else if (c == CURLY_LEFT) {
             addValuedToken(Token.SIMPLE_KEYWORD, buf, tokenList);
             state = TokenizerState.OPTION_STATE;
+        // '('
         } else if (c == CoreConstants.LEFT_PARENTHESIS_CHAR) {
             addValuedToken(Token.COMPOSITE_KEYWORD, buf, tokenList);
             state = TokenizerState.LITERAL_STATE;
+        // '%'
         } else if (c == CoreConstants.PERCENT_CHAR) {
             addValuedToken(Token.SIMPLE_KEYWORD, buf, tokenList);
             tokenList.add(Token.PERCENT_TOKEN);
             state = TokenizerState.FORMAT_MODIFIER_STATE;
+        //  ')'
         } else if (c == CoreConstants.RIGHT_PARENTHESIS_CHAR) {
             addValuedToken(Token.SIMPLE_KEYWORD, buf, tokenList);
             state = TokenizerState.RIGHT_PARENTHESIS_STATE;
         } else {
+            // 关键字处理
             addValuedToken(Token.SIMPLE_KEYWORD, buf, tokenList);
+            // ‘\\’ 转义符
             if (c == ESCAPE_CHAR) {
                 if ((pointer < patternLength)) {
                     char next = pattern.charAt(pointer++);
@@ -226,6 +245,12 @@ class TokenStream {
         }
     }
 
+    /**
+     * 添加 token值
+     * @param type      类型
+     * @param buf       token值
+     * @param tokenList token列表
+     */
     private void addValuedToken(int type, StringBuffer buf, List<Token> tokenList) {
         if (buf.length() > 0) {
             tokenList.add(new Token(type, buf.toString()));

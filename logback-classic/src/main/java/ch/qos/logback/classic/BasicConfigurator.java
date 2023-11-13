@@ -34,26 +34,25 @@ public class BasicConfigurator extends ContextAwareBase implements Configurator 
 
     public void configure(LoggerContext lc) {
         addInfo("Setting up default configuration.");
-        
+        // 初始化一个Appender -> ConsoleAppender
         ConsoleAppender<ILoggingEvent> ca = new ConsoleAppender<ILoggingEvent>();
         ca.setContext(lc);
         ca.setName("console");
+        // 初始化encoder对象
         LayoutWrappingEncoder<ILoggingEvent> encoder = new LayoutWrappingEncoder<ILoggingEvent>();
         encoder.setContext(lc);
-        
- 
-        // same as 
-        // PatternLayout layout = new PatternLayout();
-        // layout.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
+
+        // 设置encoder的布局layout属性
+        // TTLLLayout 类似于使用PatternLayout(其中pattern = %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n)
         TTLLLayout layout = new TTLLLayout();
  
         layout.setContext(lc);
         layout.start();
         encoder.setLayout(layout);
-        
+        // 设置ConsoleAppender的encoder
         ca.setEncoder(encoder);
         ca.start();
-        
+        // 初始化根logger并设置appender
         Logger rootLogger = lc.getLogger(Logger.ROOT_LOGGER_NAME);
         rootLogger.addAppender(ca);
     }

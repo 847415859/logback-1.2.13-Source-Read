@@ -156,8 +156,10 @@ public class NestedComplexPropertyIA extends ImplicitAction {
 
         // start the nested complex property if it implements LifeCycle and is not
         // marked with a @NoAutoStart annotation
+        // 获取解析出来的属性对象. 这里假设属性对象为PatternLayoutEncoder实例
         Object nestedComplexProperty = actionData.getNestedComplexProperty();
         if (nestedComplexProperty instanceof LifeCycle && NoAutoStartUtil.notMarkedWithNoAutoStart(nestedComplexProperty)) {
+            // 执行PatternLayoutEncoder的start()方法
             ((LifeCycle) nestedComplexProperty).start();
         }
 

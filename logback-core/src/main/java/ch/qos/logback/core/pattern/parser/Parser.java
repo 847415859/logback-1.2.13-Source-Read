@@ -64,7 +64,9 @@ public class Parser<E> extends ContextAwareBase {
 
     public Parser(String pattern, IEscapeUtil escapeUtil) throws ScanException {
         try {
+            // Token流对象
             TokenStream ts = new TokenStream(pattern, escapeUtil);
+            // 使用状态机模式完成Parser的tokenList初始化(将pattern解析成一个个token对象)
             this.tokenList = ts.tokenize();
         } catch (IllegalArgumentException npe) {
             throw new ScanException("Failed to initialize Parser", npe);

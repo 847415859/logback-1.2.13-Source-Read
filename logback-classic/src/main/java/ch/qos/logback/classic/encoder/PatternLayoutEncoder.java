@@ -21,10 +21,12 @@ public class PatternLayoutEncoder extends PatternLayoutEncoderBase<ILoggingEvent
 
     @Override
     public void start() {
+        // // 创建PatternLayout对象
         PatternLayout patternLayout = new PatternLayout();
         patternLayout.setContext(context);
         patternLayout.setPattern(getPattern());
         patternLayout.setOutputPatternAsHeader(outputPatternAsHeader);
+        // 初始化layout
         patternLayout.start();
         this.layout = patternLayout;
         super.start();
