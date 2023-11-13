@@ -54,14 +54,17 @@ public class LoggingEvent implements ILoggingEvent {
      * <p/>
      * Note that the getCallerInformation() method relies on this fact.
      */
+    // 调用Logger类的完全限定名称(日志实现类)。此字段无法序列化。
     transient String fqnOfLoggerClass;
 
     /**
      * The name of thread in which this logging event was generated.
      */
+    // 线程名
     private String threadName;
-
+    // 日志名称
     private String loggerName;
+    // 日志上下文对象
     private LoggerContext loggerContext;
     private LoggerContextVO loggerContextVO;
 
@@ -73,21 +76,24 @@ public class LoggingEvent implements ILoggingEvent {
      * {@link #getLevel} method instead.
      * </p>
      */
+    // 日志级别
     private transient Level level;
 
+    // 消息内容
     private String message;
 
     // we gain significant space at serialization time by marking
     // formattedMessage as transient and constructing it lazily in
     // getFormattedMessage()
+    // 消息格式化
     transient String formattedMessage;
-
+    // 参数列表
     private transient Object[] argumentArray;
-
+    // 异常
     private ThrowableProxy throwableProxy;
 
     private StackTraceElement[] callerDataArray;
-
+    // 标志
     private Marker marker;
 
     private Map<String, String> mdcPropertyMap;
@@ -96,6 +102,7 @@ public class LoggingEvent implements ILoggingEvent {
      * The number of milliseconds elapsed from 1/1/1970 until logging event was
      * created.
      */
+    // 创时间戳
     private long timeStamp;
 
     public LoggingEvent() {

@@ -25,8 +25,9 @@ import ch.qos.logback.core.spi.ContextAwareBase;
  * @author Ceki G&uuml;lc&uuml;
  */
 public abstract class RollingPolicyBase extends ContextAwareBase implements RollingPolicy {
+    // 压缩模式
     protected CompressionMode compressionMode = CompressionMode.NONE;
-
+    // 文件名称形式
     FileNamePattern fileNamePattern;
     // fileNamePatternStr is always slashified, see setter
     protected String fileNamePatternStr;
@@ -34,15 +35,15 @@ public abstract class RollingPolicyBase extends ContextAwareBase implements Roll
     private FileAppender<?> parent;
 
     // use to name files within zip file, i.e. the zipEntry
+    // 文件压缩格式
     FileNamePattern zipEntryFileNamePattern;
     private boolean started;
 
     /**
-     * Given the FileNamePattern string, this method determines the compression
-     * mode depending on last letters of the fileNamePatternStr. Patterns ending
-     * with .gz imply GZIP compression, endings with '.zip' imply ZIP compression.
-     * Otherwise and by default, there is no compression.
-     * 
+     * 给定FileNamePattern字符串，此方法根据fileNamePatternStr的最后一个字母确定压缩模式。
+     * 以.gz结尾的模式表示GZIP压缩，
+     * 以.zip结尾表示zip压缩。
+     * 否则，默认情况下，没有压缩
      */
     protected void determineCompressionMode() {
         if (fileNamePatternStr.endsWith(".gz")) {

@@ -111,7 +111,9 @@ abstract public class PatternLayoutBase<E> extends LayoutBase<E> {
     protected String writeLoopOnConverters(E event) {
         StringBuilder strBuilder = new StringBuilder(INTIAL_STRING_BUILDER_SIZE);
         Converter<E> c = head;
+        // 遍历转换器执行链解析日志内容
         while (c != null) {
+            // 使用该转换器 获取该转换器 转换出来的部分内容, 加入strBuilder中. 下面我们找一个DateConverter看下源码
             c.write(strBuilder, event);
             c = c.getNext();
         }

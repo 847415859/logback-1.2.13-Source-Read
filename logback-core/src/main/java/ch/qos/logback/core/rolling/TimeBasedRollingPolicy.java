@@ -44,20 +44,22 @@ import ch.qos.logback.core.util.FileSize;
 public class TimeBasedRollingPolicy<E> extends RollingPolicyBase implements TriggeringPolicy<E> {
     static final String FNP_NOT_SET = "The FileNamePattern option must be set before using TimeBasedRollingPolicy. ";
     // WCS: without compression suffix
+    // 文件格式  例如：./logs//info/info.%d{yyyy-MM-dd HH:mm}.log
     FileNamePattern fileNamePatternWithoutCompSuffix;
-
+    // 压缩器
     private Compressor compressor;
     private RenameUtil renameUtil = new RenameUtil();
     Future<?> compressionFuture;
     Future<?> cleanUpFuture;
-
+    // 最大保留的文件数量
     private int maxHistory = UNBOUND_HISTORY;
+    // 最大文件大小限制
     protected FileSize totalSizeCap = new FileSize(UNBOUNDED_TOTAL_SIZE_CAP);
-
+    // 过期/废弃 文件删除器
     private ArchiveRemover archiveRemover;
-
+    // 文件名基于时间滚动策略
     TimeBasedFileNamingAndTriggeringPolicy<E> timeBasedFileNamingAndTriggeringPolicy;
-
+    // 是否正在清理过期/废弃日志
     boolean cleanHistoryOnStart = false;
 
     public void start() {
@@ -88,9 +90,11 @@ public class TimeBasedRollingPolicy<E> extends RollingPolicyBase implements Trig
         }
 
         if (timeBasedFileNamingAndTriggeringPolicy == null) {
+            // 指定TimeBasedFileNamingAndTriggeringPolicy的实现类
             timeBasedFileNamingAndTriggeringPolicy = new DefaultTimeBasedFileNamingAndTriggeringPolicy<E>();
         }
         timeBasedFileNamingAndTriggeringPolicy.setContext(context);
+        //  // 缓存了TimeBasedRollingPolicy到其tbrp字段上
         timeBasedFileNamingAndTriggeringPolicy.setTimeBasedRollingPolicy(this);
         timeBasedFileNamingAndTriggeringPolicy.start();
 
@@ -160,24 +164,34 @@ public class TimeBasedRollingPolicy<E> extends RollingPolicyBase implements Trig
 
         // when rollover is called the elapsed period's file has
         // been already closed. This is a working assumption of this method.
-
+        // 出需要滚动文件的替换文件名, 在前面isTriggeringEvent方法已经得到该名字了  ./logs//info/info.2023-11-13 09:25.log
         String elapsedPeriodsFileName = timeBasedFileNamingAndTriggeringPolicy.getElapsedPeriodsFileName();
-
+        // 获取elapsedPeriodsFileName中最后"/"后的文件名
         String elapsedPeriodStem = FileFilterUtil.afterLastSlash(elapsedPeriodsFileName);
-
+        // 配置的滚动文件名没有gz. zip后缀, 则不需要压缩
         if (compressionMode == CompressionMode.NONE) {
+            // // getParentsRawFileProperty()获取的是<file>标签体内的文件名 ./logs//info/info.log
             if (getParentsRawFileProperty() != null) {
+                //  直接修改文件名. 注意: 系统禁止的文件名符号重命名会失败, 例如window系统下":"
                 renameUtil.rename(getParentsRawFileProperty(), elapsedPeriodsFileName);
             } // else { nothing to do if CompressionMode == NONE and parentsRawFileProperty == null }
         } else {
             if (getParentsRawFileProperty() == null) {
+                // 使用压缩器进行文件压缩. 不展开
+                //    这里使用日志上下文中的线程池异步进行文件压缩
+                //    gz包使用java的GZIPOutputStream压缩, zip包使用java的ZipOutputStream压缩
                 compressionFuture = compressor.asyncCompress(elapsedPeriodsFileName, elapsedPeriodsFileName, elapsedPeriodStem);
             } else {
+                // 先将滚动文件改为临时文件名, 再进行压缩(执行compressor.asyncCompress), 不展开
                 compressionFuture = renameRawAndAsyncCompress(elapsedPeriodsFileName, elapsedPeriodStem);
             }
         }
 
         if (archiveRemover != null) {
+            // 使用归档删除器将过期的文件删除掉, future用于appender销毁时阻塞线程. 不展开
+            //   这里会使用日志上下文中的线程池异步进行文件删除.
+            //   删除过程会调用clean方法删除超出时间范围内的文件(文件保留数为maxHistory+1),
+            //   capTotalCap会删除超过总文件大小的旧文件(需配置maxHistory和totalSizeCap才有效)
             Date now = new Date(timeBasedFileNamingAndTriggeringPolicy.getCurrentTime());
             this.cleanUpFuture = archiveRemover.cleanAsynchronously(now);
         }
@@ -220,6 +234,7 @@ public class TimeBasedRollingPolicy<E> extends RollingPolicyBase implements Trig
     }
 
     public boolean isTriggeringEvent(File activeFile, final E event) {
+        // 调用DefaultTimeBasedFileNamingAndTriggeringPolicy的isTriggeringEvent(File, E)方法
         return timeBasedFileNamingAndTriggeringPolicy.isTriggeringEvent(activeFile, event);
     }
 

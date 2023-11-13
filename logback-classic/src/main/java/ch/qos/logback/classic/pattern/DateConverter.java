@@ -58,6 +58,7 @@ public class DateConverter extends ClassicConverter {
 
     public String convert(ILoggingEvent le) {
         long timestamp = le.getTimeStamp();
+        // 使用之前就设置好的DateFormatter格式化时间
         return cachingDateFormatter.format(timestamp);
     }
 }

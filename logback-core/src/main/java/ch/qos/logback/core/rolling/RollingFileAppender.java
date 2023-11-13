@@ -39,8 +39,11 @@ import ch.qos.logback.core.util.ContextUtil;
  * @author Ceki G&uuml;lc&uuml;
  */
 public class RollingFileAppender<E> extends FileAppender<E> {
+    // 当前正在使用的问题
     File currentlyActiveFile;
+    // 触发滚动策略     测试：TimeBasedRollingPolicy@1037324811
     TriggeringPolicy<E> triggeringPolicy;
+    // 滚动策略
     RollingPolicy rollingPolicy;
 
     static private String RFA_NO_TP_URL = CODES_URL + "#rfa_no_tp";
@@ -179,15 +182,14 @@ public class RollingFileAppender<E> extends FileAppender<E> {
      * Implemented by delegating most of the rollover work to a rolling policy.
      */
     public void rollover() {
+        // 上锁. 关流和打开文件必须在同一个代码块内, 不关流(打开的文件)无法完成重命名
         lock.lock();
         try {
-            // Note: This method needs to be synchronized because it needs exclusive
-            // access while it closes and then re-opens the target file.
-            //
-            // make sure to close the hereto active log file! Renaming under windows
-            // does not work for open files.
+            // 关闭输出流
             this.closeOutputStream();
+            // 核心代码： 尝试滚动文件
             attemptRollover();
+            // 打开新文件, 设置输出流
             attemptOpenFile();
         } finally {
             lock.unlock();
@@ -196,7 +198,7 @@ public class RollingFileAppender<E> extends FileAppender<E> {
 
     private void attemptOpenFile() {
         try {
-            // update the currentlyActiveFile LOGBACK-64
+            // 当前正在使用文件
             currentlyActiveFile = new File(rollingPolicy.getActiveFileName());
 
             // This will also close the file. This is OK since multiple close operations are safe.
@@ -218,20 +220,22 @@ public class RollingFileAppender<E> extends FileAppender<E> {
 
     /**
     * This method differentiates RollingFileAppender from its super class.
+     * 此方法将RollingFileAppender与其超类区分开来
     */
     @Override
     protected void subAppend(E event) {
         // The roll-over check must precede actual writing. This is the
         // only correct behavior for time driven triggers.
 
-        // We need to synchronize on triggeringPolicy so that only one rollover
-        // occurs at a time
+        // 同步代码块确保判断和滚动时线程安全
         synchronized (triggeringPolicy) {
+            // 重要代码: 判断是否达到滚动时机
             if (triggeringPolicy.isTriggeringEvent(currentlyActiveFile, event)) {
+                // 重要代码： 滚动文件
                 rollover();
             }
         }
-
+        // 核心代码: 执行父类代码进行日志输出
         super.subAppend(event);
     }
 

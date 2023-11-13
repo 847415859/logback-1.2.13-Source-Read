@@ -61,26 +61,26 @@ abstract public class UnsynchronizedAppenderBase<E> extends ContextAwareBase imp
         // WARNING: The guard check MUST be the first statement in the
         // doAppend() method.
 
-        // prevent re-entry.
+        // 使用ThreadLocal确保当前doAppend防重入 (不改源码正常调用其实不会出现重入问题)
         if (Boolean.TRUE.equals(guard.get())) {
             return;
         }
 
         try {
+            // 设置为true防重复
             guard.set(Boolean.TRUE);
-
+            // 确保当前所使用的 appender 已完成初始化
             if (!this.started) {
                 if (statusRepeatCount++ < ALLOWED_REPEATS) {
                     addStatus(new WarnStatus("Attempted to append to non started appender [" + name + "].", this));
                 }
                 return;
             }
-
+            //  获取当前appender的所有过滤器, 判断是否可以通过. 较简单不展开
             if (getFilterChainDecision(eventObject) == FilterReply.DENY) {
                 return;
             }
-
-            // ok, we now invoke derived class' implementation of append
+            // // 核心代码: 执行日志输出
             this.append(eventObject);
 
         } catch (Exception e) {
@@ -88,6 +88,7 @@ abstract public class UnsynchronizedAppenderBase<E> extends ContextAwareBase imp
                 addError("Appender [" + name + "] failed to append.", e);
             }
         } finally {
+            // 重置为false, 允许进入
             guard.set(Boolean.FALSE);
         }
     }

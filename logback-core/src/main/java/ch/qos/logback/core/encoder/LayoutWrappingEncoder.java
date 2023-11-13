@@ -113,7 +113,9 @@ public class LayoutWrappingEncoder<E> extends EncoderBase<E> {
     }
 
     public byte[] encode(E event) {
+        // 使用layout解析出最终的日志内容
         String txt = layout.doLayout(event);
+        // 将最终的日志内容转为byte数组返回.
         return convertToBytes(txt);
     }
 

@@ -253,13 +253,17 @@ public final class Logger implements org.slf4j.Logger, LocationAwareLogger, Appe
      */
     public void callAppenders(ILoggingEvent event) {
         int writes = 0;
+        // 若没有提前中断, 则递归当前logger的执行链, 一直到root
         for (Logger l = this; l != null; l = l.parent) {
+            // 核心代码: 获取当前logger下的所有appender, 遍历输出日志
             writes += l.appendLoopOnAppenders(event);
+            // 若当前logger的additive属性为false, 则不再调用父类logger输出日志
             if (!l.additive) {
                 break;
             }
         }
         // No appenders in hierarchy
+        // 递归的logger都没找到一个appender, 则添加警告信息(系统启动后仅能添加一次). 输出警告信息需要配置configuration下的statusListener
         if (writes == 0) {
             loggerContext.noAppenderDefinedWarning(this);
         }
@@ -376,19 +380,29 @@ public final class Logger implements org.slf4j.Logger, LocationAwareLogger, Appe
      * logging by about 20 nanoseconds.
      */
 
+    /**
+     * 了解: 时间优化到极致的体现
+     *  filterAndLog有三个方法:
+     *      *  filterAndLog_0_Or3Plus
+     *      *  filterAndLog_1
+     *      *  filterAndLog_2
+     *   其中filterAndLog_1和filterAndLog_2中创建了一个Object[]新对象, filterAndLog_0_Or3Plus中不需要创建该对象
+     *   节省Object[]对象的创建可以节省约20纳秒
+     */
     private void filterAndLog_0_Or3Plus(final String localFQCN, final Marker marker, final Level level, final String msg, final Object[] params,
                     final Throwable t) {
-
+        //  判断是否可以通过上下文的过滤器. logback初始化完成后该方法都是返回NEUTRAL, 不展开
         final FilterReply decision = loggerContext.getTurboFilterChainDecision_0_3OrMore(marker, this, level, msg, params, t);
 
         if (decision == FilterReply.NEUTRAL) {
+            // logback初始化完成后都会进入该位置. 这里判断当前logger的level是否 大于 输出日志的level, 大于则结束
             if (effectiveLevelInt > level.levelInt) {
                 return;
             }
         } else if (decision == FilterReply.DENY) {
             return;
         }
-
+        // 核心代码: 构建LoggingEvent并输出日志
         buildLoggingEventAndAppend(localFQCN, marker, level, msg, params, t);
     }
 
@@ -423,10 +437,22 @@ public final class Logger implements org.slf4j.Logger, LocationAwareLogger, Appe
         buildLoggingEventAndAppend(localFQCN, marker, level, msg, new Object[] { param1, param2 }, t);
     }
 
+    /**
+     * 构建日志事件并且添加
+     * @param localFQCN
+     * @param marker
+     * @param level
+     * @param msg
+     * @param params
+     * @param t
+     */
     private void buildLoggingEventAndAppend(final String localFQCN, final Marker marker, final Level level, final String msg, final Object[] params,
                     final Throwable t) {
+        // 构建LoggingEvent对象, 该对象包含了日志内容、日志级别、当前logger对象、线程名称等信息
         LoggingEvent le = new LoggingEvent(localFQCN, this, level, msg, t, params);
+        // 设置标记信息(较少使用)
         le.setMarker(marker);
+        // 核心代码: 调用appender执行日志输出
         callAppenders(le);
     }
 
@@ -585,6 +611,7 @@ public final class Logger implements org.slf4j.Logger, LocationAwareLogger, Appe
     }
 
     public void info(String msg) {
+        // 过滤输出日志
         filterAndLog_0_Or3Plus(FQCN, null, Level.INFO, msg, null, null);
     }
 

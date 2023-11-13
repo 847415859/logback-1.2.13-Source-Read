@@ -21,7 +21,7 @@
         <!-- 循环政策：基于时间创建日志文件 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- 日志文件名格式 -->
-            <fileNamePattern>${log.path}/info/info.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${log.path}/info/info.%d{yyyy-MM-dd HH:mm}.log</fileNamePattern>
             <!-- 日志最大的历史 3天 -->
             <maxHistory>3</maxHistory>
         </rollingPolicy>
@@ -57,7 +57,6 @@
     </appender>
 
     <logger name="com.qiankun" level="INFO" additivity="false">
-        <appender-ref ref="console"/>
         <appender-ref ref="file_info"/>
     </logger>
 

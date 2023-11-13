@@ -45,12 +45,16 @@ public class AppenderAttachableImpl<E> implements AppenderAttachable<E> {
      */
     public int appendLoopOnAppenders(E e) {
         int size = 0;
+        // 从appenderList拷贝出appender数组, 通过fresh原子属性控制安全性, 感兴趣的可以看下, 这里不展开
         final Appender<E>[] appenderArray = appenderList.asTypedArray();
         final int len = appenderArray.length;
         for (int i = 0; i < len; i++) {
+            // 核心代码: 遍历执行一个个appender的doAppend方法
+            // 住: 这里我们仅看下RollingFileAppender是如何处理的
             appenderArray[i].doAppend(e);
             size++;
         }
+        // 返回当前logger的appender个数
         return size;
     }
 

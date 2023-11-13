@@ -159,9 +159,11 @@ public class PatternLayout extends PatternLayoutBase<ILoggingEvent> {
     }
 
     public String doLayout(ILoggingEvent event) {
+        // 确保layout已启动
         if (!isStarted()) {
             return CoreConstants.EMPTY_STRING;
         }
+        // 使用转化器链获取实际日志内容
         return writeLoopOnConverters(event);
     }
 

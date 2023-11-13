@@ -95,10 +95,11 @@ public class OutputStreamAppender<E> extends UnsynchronizedAppenderBase<E> {
 
     @Override
     protected void append(E eventObject) {
+        // 确保当前appender已完成初始化 (因为其他线程使用该appender出错时start属性就变成了false)
         if (!isStarted()) {
             return;
         }
-
+        // 核心代码: 执行日志输出
         subAppend(eventObject);
     }
 
@@ -193,10 +194,12 @@ public class OutputStreamAppender<E> extends UnsynchronizedAppenderBase<E> {
     private void writeBytes(byte[] byteArray) throws IOException {
         if(byteArray == null || byteArray.length == 0)
             return;
-        
+        // 上锁, 避免多线程写入写出时出现错误
         lock.lock();
         try {
+            // 写入输出流中
             this.outputStream.write(byteArray);
+            //  若immediateFlush=true, 立即写出. 该属性默认值为true
             if (immediateFlush) {
                 this.outputStream.flush();
             }
@@ -214,25 +217,24 @@ public class OutputStreamAppender<E> extends UnsynchronizedAppenderBase<E> {
      * @since 0.9.0
      */
     protected void subAppend(E event) {
+        // 确保当前appender已完成初始化(因为其他线程使用该appender出错时start属性就变成了false)
         if (!isStarted()) {
             return;
         }
         try {
             // this step avoids LBCLASSIC-139
+            // 设置LoggerEvent的内容, 线程名, 和mdc属性值. 不展开
             if (event instanceof DeferredProcessingAware) {
                 ((DeferredProcessingAware) event).prepareForDeferredProcessing();
             }
-            // the synchronization prevents the OutputStream from being closed while we
-            // are writing. It also prevents multiple threads from entering the same
-            // converter. Converters assume that they are in a synchronized block.
-            // lock.lock();
-
+            // 使用编码器的解析出最终的日志内容. 这里由于每个转换器都保证了线程安全, 故该方法不用上锁
+            // 注: 后续假设Encoder的实现类为PatternLayoutEncoder
             byte[] byteArray = this.encoder.encode(event);
+            //  使用流输出日志信息. 为避免多线程出现写入写出, 该方法需要使用同步锁
             writeBytes(byteArray);
 
         } catch (IOException ioe) {
-            // as soon as an exception occurs, move to non-started state
-            // and add a single ErrorStatus to the SM.
+            // 异常则该appender就关闭掉了
             this.started = false;
             addStatus(new ErrorStatus("IO failure in appender", this, ioe));
         }
